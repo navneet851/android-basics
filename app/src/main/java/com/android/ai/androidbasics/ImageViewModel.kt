@@ -7,8 +7,14 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 
 class ImageViewModel : ViewModel() {
-    var uri  by  mutableStateOf<Uri?>(null)
+    var text by mutableStateOf<String?>(null)
         private set
+    var uri by mutableStateOf<Uri?>(null)
+        private set
+
+    fun updateText(newText: String?) {
+        text = newText
+    }
 
     fun updateUri(newUri: Uri?) {
         uri = newUri

@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.android.ai.androidbasics.ui.theme.AndroidBasicsTheme
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
+import com.bumptech.glide.integration.compose.placeholder
 
 class MainActivity : ComponentActivity() {
     private val viewModel by viewModels<ImageViewModel>()
@@ -32,14 +33,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        handleIntent(intent)
         setContent {
             AndroidBasicsTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) {
-                    GlideImage(
-                        model = viewModel.uri?: R.drawable.ic_launcher_foreground,
-                        contentDescription = "image",
-                        modifier = Modifier.size(400.dp)
-                    )
+
+
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -47,6 +46,17 @@ class MainActivity : ComponentActivity() {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
+                        Text(
+                            text = viewModel.text ?: "No text received",
+                            modifier = Modifier.padding(16.dp)
+                        )
+                        GlideImage(
+                            model = viewModel.uri?: R.drawable.ic_launcher_foreground,
+//                            model = "https://www.crucial.in/content/dam/crucial/articles/pc-users/how-to-make-your-laptop-run-faster/uninstall.jpg.transform/medium-jpg/img.jpg",
+                            loading = placeholder(R.drawable.ic_launcher_background),
+                            contentDescription = "image",
+                            modifier = Modifier.size(200.dp)
+                        )
                         Button(
                             onClick = {
                                 Intent(
@@ -99,14 +109,25 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        intent?.let { handleSendImage(it) }
+        intent?.let { handleIntent(it) }
     }
 
-    private fun handleSendImage(intent: Intent) {
-        if (intent.action == Intent.ACTION_SEND && intent.type?.startsWith("image/") == true) {
-            val imageUri: Uri? = intent.getParcelableExtra(Intent.EXTRA_STREAM)
-            viewModel.updateUri(imageUri)
+    private fun handleIntent(intent: Intent) {
+        when {
+            intent.action == Intent.ACTION_SEND && intent.type == "text/plain" -> {
+                val receivedText: String? = intent.getStringExtra(Intent.EXTRA_TEXT)
+                viewModel.updateText(receivedText)
+            }
+            intent.action == Intent.ACTION_SEND && intent.type?.startsWith("image/") == true -> {
+                val imageUri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                } else {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                }
+                viewModel.updateUri(imageUri)
+            }
         }
     }
+
 }
 
