@@ -1,12 +1,20 @@
 package com.android.ai.androidbasics
 
+import android.Manifest
+import android.app.Activity
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
@@ -22,17 +30,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.android.ai.androidbasics.ui.theme.AndroidBasicsTheme
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
 
 class MainActivity : ComponentActivity() {
+    private val airplaneModeBroadcast = BroadCastReceiver()
+    private val context = this
+
     private val viewModel by viewModels<ImageViewModel>()
     @OptIn(ExperimentalGlideComposeApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        //getting a broadcast of airplane mode
+        registerReceiver(airplaneModeBroadcast, IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED))
+        //cretes notification channel
+        notificationChannel()
+        //requested post permission
+        requestPostPermission()
+        //to show request
+        //airplaneModeBroadcast.showNotification(this)
+        // implemented intent Filter for text and image
         handleIntent(intent)
         setContent {
             AndroidBasicsTheme {
@@ -57,6 +79,13 @@ class MainActivity : ComponentActivity() {
                             contentDescription = "image",
                             modifier = Modifier.size(200.dp)
                         )
+                        Button(
+                            onClick = {
+                                airplaneModeBroadcast.showNotification(context)
+                            }
+                        ) {
+                            Text("Show Notification")
+                        }
                         Button(
                             onClick = {
                                 Intent(
@@ -102,6 +131,24 @@ class MainActivity : ComponentActivity() {
 
                     }
                 }
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(airplaneModeBroadcast)
+    }
+
+    private fun notificationChannel(){
+        val notificationManager : NotificationManager = this.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.createNotificationChannel(NotificationChannel("101", "broadcast check", NotificationManager.IMPORTANCE_HIGH))
+    }
+
+    fun requestPostPermission(){
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED){
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ActivityCompat.requestPermissions(this, arrayOf( Manifest.permission.POST_NOTIFICATIONS), 101)
             }
         }
     }
