@@ -1,7 +1,6 @@
 package com.android.ai.androidbasics
 
 import android.Manifest
-import android.app.Activity
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -14,9 +13,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.viewModels
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,19 +22,23 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.android.ai.androidbasics.ui.theme.AndroidBasicsTheme
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
 
 class MainActivity : ComponentActivity() {
+    private lateinit var workManager: WorkManager
     private val airplaneModeBroadcast = BroadCastReceiver()
     private val context = this
 
@@ -46,10 +47,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        workManager = WorkManager.getInstance(this)
         //getting a broadcast of airplane mode
         registerReceiver(airplaneModeBroadcast, IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED))
         //cretes notification channel
-        notificationChannel()
+        notificationChannel1()
+        notificationChannel2()
         //requested post permission
         requestPostPermission()
         //to show request
@@ -79,6 +82,26 @@ class MainActivity : ComponentActivity() {
                             contentDescription = "image",
                             modifier = Modifier.size(200.dp)
                         )
+                        Button(
+                            onClick = {
+                                Intent(applicationContext, ForegroundService::class.java).also { start ->
+                                    start.action = "start"
+                                    startService(start)
+                                }
+                            }
+                        ) {
+                            Text("Start Service")
+                        }
+                        Button(
+                            onClick = {
+                                Intent(applicationContext, ForegroundService::class.java).also { start ->
+                                    start.action = "stop"
+                                    startService(start)
+                                }
+                            }
+                        ) {
+                            Text("Stop Service")
+                        }
                         Button(
                             onClick = {
                                 airplaneModeBroadcast.showNotification(context)
@@ -140,9 +163,13 @@ class MainActivity : ComponentActivity() {
         unregisterReceiver(airplaneModeBroadcast)
     }
 
-    private fun notificationChannel(){
+    private fun notificationChannel1(){
         val notificationManager : NotificationManager = this.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.createNotificationChannel(NotificationChannel("101", "broadcast check", NotificationManager.IMPORTANCE_HIGH))
+    }
+    private fun notificationChannel2(){
+        val notificationManager : NotificationManager = this.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.createNotificationChannel(NotificationChannel("102", "work", NotificationManager.IMPORTANCE_LOW))
     }
 
     fun requestPostPermission(){
@@ -164,6 +191,19 @@ class MainActivity : ComponentActivity() {
             intent.action == Intent.ACTION_SEND && intent.type == "text/plain" -> {
                 val receivedText: String? = intent.getStringExtra(Intent.EXTRA_TEXT)
                 viewModel.updateText(receivedText)
+                val constraints = Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.UNMETERED)
+                    .build()
+
+                val request = OneTimeWorkRequestBuilder<SyncingData>()
+                    .setInputData(
+                        workDataOf(
+                            "sync_data" to receivedText
+                        )
+                    )
+                    .setConstraints(constraints)
+                    .build()
+                workManager.enqueue(request)
             }
             intent.action == Intent.ACTION_SEND && intent.type?.startsWith("image/") == true -> {
                 val imageUri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
