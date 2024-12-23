@@ -12,6 +12,9 @@ class ImageViewModel : ViewModel() {
     var uri by mutableStateOf<Uri?>(null)
         private set
 
+    var songs by mutableStateOf<List<Song>?>(null)
+        private set
+
     fun updateText(newText: String?) {
         text = newText
     }
@@ -19,5 +22,10 @@ class ImageViewModel : ViewModel() {
     fun updateUri(newUri: Uri?) {
         uri = newUri
     }
+
+    fun updateSongs(newSongs: List<Song>?){
+        songs = newSongs
+    }
+
 
 }
